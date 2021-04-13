@@ -92,6 +92,7 @@ class CharactorDurationF0EnergyMelDataset(AbstractDataset):
 
         # assert the number of files
         assert len(mel_files) != 0, f"Not found any mels files in ${root_dir}."
+        print(f"mel={len(mel_files)},charactor={len(charactor_files)},duration={len(duration_files)},f0={len(f0_files)},energy={len(energy_files)}")
         assert (
             len(mel_files)
             == len(charactor_files)
@@ -160,7 +161,8 @@ class CharactorDurationF0EnergyMelDataset(AbstractDataset):
         duration = tf.numpy_function(np.load, [items["duration_files"]], tf.int32)
         f0 = tf.numpy_function(np.load, [items["f0_files"]], tf.float32)
         energy = tf.numpy_function(np.load, [items["energy_files"]], tf.float32)
-
+        utt_ids = items["utt_ids"]
+        print(f"**** uid={utt_ids}, mel.shape={mel.shape}, charactor.shape={charactor.shape}, duration.shape={duration.shape}, f0.shape={f0.shape}, energy.shape={energy.shape}")
         f0 = self._norm_mean_std_tf(f0, self.f0_stat[0], self.f0_stat[1])
         energy = self._norm_mean_std_tf(
             energy, self.energy_stat[0], self.energy_stat[1]

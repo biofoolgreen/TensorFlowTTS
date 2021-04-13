@@ -17,8 +17,10 @@
 import tensorflow as tf
 
 physical_devices = tf.config.list_physical_devices("GPU")
-for i in range(len(physical_devices)):
-    tf.config.experimental.set_memory_growth(physical_devices[i], True)
+#tf.config.experimental.set_memory_growth(physical_devices[0], True)
+for gpu in physical_devices:
+    tf.config.experimental.set_memory_growth(gpu, True)
+    assert tf.config.experimental.get_memory_growth(gpu)
 
 import sys
 
