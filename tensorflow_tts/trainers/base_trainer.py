@@ -17,6 +17,7 @@
 import abc
 import logging
 import os
+import time
 
 import tensorflow as tf
 from tqdm import tqdm
@@ -97,16 +98,16 @@ class BasedTrainer(metaclass=abc.ABCMeta):
 
     def run(self):
         """Run training."""
-        self.tqdm = tqdm(
-            initial=self.steps, total=self.config["train_max_steps"], desc="[train]"
-        )
+        # self.tqdm = tqdm(
+        #     initial=self.steps, total=self.config["train_max_steps"], desc="[train]"
+        # )
         while True:
             self._train_epoch()
 
             if self.finish_train:
                 break
 
-        self.tqdm.close()
+        # self.tqdm.close()
         logging.info("Finish training.")
 
     @abc.abstractmethod
@@ -119,12 +120,21 @@ class BasedTrainer(metaclass=abc.ABCMeta):
         """Load checkpoint."""
         pass
 
+    @abc.abstractmethod
+    def get_n_gpus():
+        """Get number of GPUs"""
+        pass
+
     def _train_epoch(self):
         """Train model one epoch."""
         for train_steps_per_epoch, batch in enumerate(self.train_data_loader, 1):
             # one step training
+            start = time.time()
             self._train_step(batch)
-
+            duration = time.time() - start
+            global_batch_size = self.config["batch_size"]* self.get_n_gpus() * self.config["gradient_accumulation_steps"]
+            throughput = global_batch_size / duration
+            logging.info(f"Step: {self.steps}, throughput={throughput:.2f} samples/s, duration: {duration:6f}s")
             # check interval
             self._check_log_interval()
             self._check_eval_interval()
@@ -293,7 +303,7 @@ class GanBasedTrainer(BasedTrainer):
 
         # update counts
         self.steps += 1
-        self.tqdm.update(1)
+        # self.tqdm.update(1)
         self._check_train_finish()
 
     def _one_step_forward(self, batch):
@@ -653,10 +663,12 @@ class GanBasedTrainer(BasedTrainer):
     def _check_log_interval(self):
         """Log to tensorboard."""
         if self.steps % self.config["log_interval_steps"] == 0:
-            for metric_name in self.list_metrics_name:
-                logging.info(
-                    f"(Step: {self.steps}) train_{metric_name} = {self.train_metrics[metric_name].result():.4f}."
-                )
+            # for metric_name in self.list_metrics_name:
+            #     logging.info(
+            #         f"(Step: {self.steps}) train_{metric_name} = {self.train_metrics[metric_name].result():.4f}."
+            #     )
+            loss_str = " ".join(f"{metric_name}:{self.train_metrics[metric_name].result():.4f}" for metric_name in self.list_metrics_name)
+            logging.info(f"***** Step: {self.steps}, {loss_str}")
             self._write_to_tensorboard(self.train_metrics, stage="train")
 
             # reset
@@ -780,10 +792,10 @@ class Seq2SeqBasedTrainer(BasedTrainer, metaclass=abc.ABCMeta):
 
         # run one_step_forward
         self.one_step_forward(batch)
-
+        
         # update counts
         self.steps += 1
-        self.tqdm.update(1)
+        # self.tqdm.update(1)
         self._check_train_finish()
 
     def _one_step_forward(self, batch):
